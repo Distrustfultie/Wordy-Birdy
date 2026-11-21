@@ -1,71 +1,67 @@
 import { axiosInstance } from "./axios";
 
-/**
- * Signs up a new user.
- */
+// ---------- auth ----------
+
 export const signup = async (signUpData) => {
   const response = await axiosInstance.post("/auth/signup", signUpData);
   return response.data;
 };
 
-/**
- * Logs in a user.
- */
 export const login = async (loginData) => {
   const response = await axiosInstance.post("/auth/login", loginData);
   return response.data;
 };
 
-/**
- * Logs out the current user.
- */
 export const logout = async () => {
   const response = await axiosInstance.post("/auth/logout");
   return response.data;
 };
 
-/**
- * Fetches the authenticated user from the server.
- */
+/** The logged-in user, or null when not authenticated. */
 export const getAuthUser = async () => {
   try {
     const res = await axiosInstance.get("/auth/me");
     return res.data;
   } catch (error) {
-    if (error.response?.status === 401) return null; // ✅ key fix
+    if (error.response?.status === 401) return null;
     console.log("Error in getAuthUser: ", error);
     throw error;
   }
 };
 
-/**
- * Completes onboarding.
- */
 export const completeOnboarding = async (userData) => {
   const response = await axiosInstance.post("/auth/onboarding", userData);
   return response.data;
 };
 
-// -------- user / friends / chat (UNCHANGED) --------
+// ---------- users & profiles ----------
 
-export async function getUserFriends() {
-  try {
-    const response = await axiosInstance.get("/user/friends");
-    return response.data;
-  } catch (error) {
-    console.log("Error in getUserFriends: ", error);
-    return [];
-  }
+/** Recommended partners. `params` may include `search` and `language`. */
+export async function getRecommendedUsers(params = {}) {
+  const response = await axiosInstance.get("/user", { params });
+  return response.data;
 }
 
-export async function getRecommendedUsers() {
-  try {
-    const response = await axiosInstance.get("/user");
-    return response.data;
-  } catch (error) {
-    console.log("Error in getRecommendedUsers: ", error);
-    return [];
-  }
+export async function getUserProfile(userId) {
+  const response = await axiosInstance.get(`/user/${userId}`);
+  return response.data;
+}
+
+export async function updateProfile(profileData) {
+  const response = await axiosInstance.put("/user/me", profileData);
+  return response.data;
+}
+
+// ---------- friends ----------
+
+export async function getUserFriends() {
+  const response = await axiosInstance.get("/user/friends");
+  return response.data;
+}
+
+export async function removeFriend(userId) {
+  const response = await axiosInstance.delete(`/user/friends/${userId}`);
+  return response.data;
 }
 
 export async function getOutgoingFriendReqs() {
@@ -84,11 +80,17 @@ export async function getFriendRequests() {
 }
 
 export async function acceptFriendRequest(requestId) {
-  const response = await axiosInstance.put(
-    `/user/friend-request/${requestId}/accept`
-  );
+  const response = await axiosInstance.put(`/user/friend-request/${requestId}/accept`);
   return response.data;
 }
+
+/** Declines an incoming request, or cancels one you sent. */
+export async function deleteFriendRequest(requestId) {
+  const response = await axiosInstance.delete(`/user/friend-request/${requestId}`);
+  return response.data;
+}
+
+// ---------- chat ----------
 
 export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");

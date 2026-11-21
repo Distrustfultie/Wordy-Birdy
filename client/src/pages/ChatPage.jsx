@@ -1,142 +1,136 @@
-import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
-import useAuthUser from '../hooks/useAuthUser';
-import { useQuery } from '@tanstack/react-query';
-import { getStreamToken } from '../lib/api';
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Channel, Chat, MessageInput, MessageList, Thread, Window } from "stream-chat-react";
+import toast from "react-hot-toast";
+import { ArrowLeftIcon, MessageCircleIcon, UserIcon, VideoIcon } from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
+import usePresence from "../hooks/usePresence";
+import { useStreamChat } from "../context/StreamChatContext";
+import { useThemeStore } from "../store/useThemeStore";
+import { getUserProfile } from "../lib/api";
+import { DARK_THEMES } from "../constants";
+import { directChannelId } from "../lib/utilis";
+import Avatar from "../components/Avatar";
+import { LanguageFlag } from "../components/LanguageBadge";
+import ChatLoader from "../components/ChatLoader";
+import EmptyState from "../components/EmptyState";
 
-import {
-  Channel,
-  ChannelHeader,
-  Chat,
-  MessageInput,
-  MessageList,
-  Thread,
-  Window
-} from "stream-chat-react";
-import { StreamChat } from 'stream-chat';
-import toast from 'react-hot-toast';
-import ChatLoader from '../components/ChatLoader';
-import CallButton from '../components/CallButton';
+/** Custom header: back, who you're talking to (with presence), and the call button. */
+const ChatHeader = ({ partner, partnerId, online, onCall }) => (
+  <div className="flex items-center gap-3 border-b border-base-300 bg-base-100 px-3 py-3 sm:px-5">
+    <Link to="/messages" className="btn btn-ghost btn-sm btn-circle" aria-label="Back to messages">
+      <ArrowLeftIcon className="size-5" />
+    </Link>
+    <Link to={`/profile/${partnerId}`} className="flex min-w-0 flex-1 items-center gap-3">
+      <Avatar src={partner?.profilePic} name={partner?.fullName} size="sm" online={online} />
+      <div className="min-w-0">
+        <p className="truncate font-semibold leading-tight">{partner?.fullName || "Loading..."}</p>
+        <p className="flex items-center gap-1.5 text-xs text-base-content/60">
+          {online ? <span className="text-success">Online</span> : <span>Offline</span>}
+          {partner?.nativeLanguage && (
+            <>
+              <span>·</span>
+              <LanguageFlag language={partner.nativeLanguage} />
+              <span className="capitalize">Speaks {partner.nativeLanguage}</span>
+            </>
+          )}
+        </p>
+      </div>
+    </Link>
+    <Link to={`/profile/${partnerId}`} className="btn btn-ghost btn-sm btn-circle hidden sm:inline-flex" aria-label="View profile">
+      <UserIcon className="size-5" />
+    </Link>
+    <button onClick={onCall} className="btn btn-primary btn-sm gap-2" aria-label="Start video call">
+      <VideoIcon className="size-4" />
+      <span className="hidden sm:inline">Video call</span>
+    </button>
+  </div>
+);
 
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
-
-/**
- * The ChatPage component is a full-screen component that renders a
- * chat page. It uses the useAuthUser hook to get the current
- * authenticated user and the useQuery hook to get a Stream token.
- * It then uses the StreamChat and Channel components to watch a
- * channel and render the chat UI.
- *
- * @returns {React.ReactElement} The ChatPage component.
- */
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
-
-  const [chatClient, setChatClient] = useState(null);
-  const [channel, setChannel] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const navigate = useNavigate();
   const { authUser } = useAuthUser();
+  const { client, error } = useStreamChat();
+  const { theme } = useThemeStore();
+  const [channel, setChannel] = useState(null);
+  const [channelError, setChannelError] = useState(null);
 
-  // Keyed by user id so a cached token is never reused for a different account.
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken", authUser?._id],
-    queryFn: getStreamToken,
-    enabled: !!authUser
+  const { data: partner } = useQuery({
+    queryKey: ["profile", targetUserId],
+    queryFn: () => getUserProfile(targetUserId),
+    retry: false,
   });
+  const online = usePresence([targetUserId]).has(targetUserId);
 
   useEffect(() => {
-    if (!tokenData?.token || !authUser) return;
-
-    // A fresh client per effect run (not the StreamChat singleton) so the
-    // cleanup below can disconnect it without racing a new connection.
-    const client = new StreamChat(STREAM_API_KEY);
+    if (!client) return;
     let cancelled = false;
+    setChannelError(null);
 
-    /**
-     * Connects the user to Stream, then creates and watches the 1:1 channel
-     * between the authenticated user and the target user.
-     */
-    const initChat = async () => {
-      try {
-        await client.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: authUser.profilePic,
-          },
-          tokenData.token
-        );
+    const ch = client.channel("messaging", directChannelId(authUser._id, targetUserId), {
+      members: [authUser._id, targetUserId],
+    });
 
-        const channelId = [authUser._id, targetUserId].sort().join("-");
-
-        const currChannel = client.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
-
-        await currChannel.watch();
+    ch.watch()
+      .then(() => {
+        if (!cancelled) setChannel(ch);
+      })
+      .catch((err) => {
         if (cancelled) return;
-
-        setChatClient(client);
-        setChannel(currChannel);
-      } catch (error) {
-        if (cancelled) return;
-        console.error("Error initializing chat:", error);
-        toast.error("Could not connect to chat. Please try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    const connecting = initChat();
+        console.error("Error opening chat:", err);
+        setChannelError(err);
+        toast.error("Could not open this chat. Please try again.");
+      });
 
     return () => {
       cancelled = true;
-      setChatClient(null);
       setChannel(null);
-      connecting.finally(() => client.disconnectUser());
     };
-  }, [tokenData, authUser, targetUserId]);
+  }, [client, authUser._id, targetUserId]);
 
-/**
- * Sends a message to the channel with a link to a video call.
- * The link is generated by appending the channel ID to the current
- * window location origin.
- *
- * @function
- * @returns {void}
- */
-  const handleVideoCall = () => {
-    if (channel) {
-      const callUrl = `${window.location.origin}/call/${channel.id}`;
-
-      channel.sendMessage({
-        text: `I've started a video call. Join me here: ${callUrl}`,
-      });
-
-      toast.success("Video call link sent successfully!");
+  const handleVideoCall = async () => {
+    if (!channel) return;
+    const callUrl = `${window.location.origin}/call/${channel.id}`;
+    try {
+      await channel.sendMessage({ text: `📹 I've started a video call. Join me here: ${callUrl}` });
+      navigate(`/call/${channel.id}`);
+    } catch (err) {
+      console.error("Error starting call:", err);
+      toast.error("Could not start the call.");
     }
+  };
+
+  if (error || channelError) {
+    return (
+      <div className="p-4 sm:p-8">
+        <EmptyState
+          icon={MessageCircleIcon}
+          title="Chat is unavailable"
+          description="We couldn't connect to this conversation. Please refresh and try again."
+          action={<Link to="/messages" className="btn btn-primary btn-sm">Back to messages</Link>}
+        />
+      </div>
+    );
   }
 
-  if (loading || !chatClient || !channel) return <ChatLoader />;
+  if (!client || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh]">
-      <Chat client={chatClient}>
+    <div className="wb-chat h-full">
+      <Chat client={client} theme={DARK_THEMES.has(theme) ? "str-chat__theme-dark" : "str-chat__theme-light"}>
         <Channel channel={channel}>
-          <div className="w-full relative">
-            <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
-              <ChannelHeader />
-              <MessageList />
-              <MessageInput focus />
-            </Window>
-          </div>
+          <Window>
+            <ChatHeader partner={partner} partnerId={targetUserId} online={online} onCall={handleVideoCall} />
+            <MessageList />
+            <MessageInput focus />
+          </Window>
           <Thread />
         </Channel>
       </Chat>
     </div>
   );
-}
+};
 
-export default ChatPage
+export default ChatPage;

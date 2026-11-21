@@ -1,196 +1,122 @@
-import React, { useState } from 'react';
-import { Bird } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import useSignUp from '../hooks/useSignUp';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { AlertCircleIcon } from "lucide-react";
+import useSignUp from "../hooks/useSignUp";
+import AuthLayout from "../components/AuthLayout";
+import PasswordInput from "../components/PasswordInput";
+import { getErrorMessage } from "../lib/utilis";
 
-/**
- * The SignUpPage component renders a form for users to sign up and create an account.
- * It performs a mutation to the server when the form is submitted, and upon success,
- * invalidates the authUser query to ensure the user is logged in.
- * @returns {JSX.Element} The SignUpPage component.
- */
+/** 0-4 rough password strength, for the meter only (server enforces length >= 8). */
+const strength = (pw) =>
+  [pw.length >= 8, /[A-Z]/.test(pw) && /[a-z]/.test(pw), /\d/.test(pw), /[^A-Za-z0-9]/.test(pw)].filter(Boolean)
+    .length;
+
+const STRENGTH_LABEL = ["Too short", "Weak", "Okay", "Good", "Strong"];
+const STRENGTH_COLOR = ["progress-error", "progress-error", "progress-warning", "progress-info", "progress-success"];
+
 const SignUpPage = () => {
-  const [signUpData, setSignUpData] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-  });
-
+  const [signupData, setSignupData] = useState({ fullName: "", email: "", password: "" });
+  const [agreed, setAgreed] = useState(false);
   const { isPending, error, signupMutation } = useSignUp();
 
-  /**
-   * Handles the submission of the sign up form, preventing the default
-   * submission action and calling the signupMutation with the current
-   * signUpData.
-   * @param {React.FormEvent<HTMLFormElement>} e The form event.
-   */
+  const score = signupData.password.length < 8 ? 0 : strength(signupData.password);
+
   const handleSignup = (e) => {
     e.preventDefault();
-    signupMutation(signUpData);
+    signupMutation(signupData);
   };
 
   return (
-    <div
-      className="h-screen flex items-center justify-center p-4 sm:p-6 md:p-8"
-      data-theme="cupcake"
-    >
-      <div className="border border-primary/25 flex flex-col lg:flex-row w-full max-w-5xl mx-auto bg-base-100 rounded-xl shadow-lg overflow-hidden">
-        {/* Form Left Section */}
-        <div className="w-full lg:w-1/2 p-4 sm:p-8 flex flex-col">
-          <div className="mb-4 flex items-center justify-start gap-2">
-            <Bird className="size-9 text-primary" />
-            <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              WordyBirdy
-            </span>
-          </div>
-
-          {error && (
-            <div className="alert alert-error shadow-lg mb-4">
-              <span>{error.response.data.message}</span>
-            </div>
-          )}
-
-          <div className="w-full">
-            <form onSubmit={handleSignup}>
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-semibold">Create an Account</h2>
-                  <p className="text-sm opacity-70">
-                    Join WordyBirdy and start your learning journey today!
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Full Name</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Full name"
-                      className="input input-bordered w-full"
-                      value={signUpData.fullName}
-                      onChange={(e) =>
-                        setSignUpData({
-                          ...signUpData,
-                          fullName: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Email</span>
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="Enter Email address e.g johndoe@gmail.com"
-                      className="input input-bordered w-full"
-                      value={signUpData.email}
-                      onChange={(e) =>
-                        setSignUpData({
-                          ...signUpData,
-                          email: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Password</span>
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="**********"
-                      className="input input-bordered w-full"
-                      value={signUpData.password}
-                      onChange={(e) =>
-                        setSignUpData({
-                          ...signUpData,
-                          password: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                    <p className="text-xs opacity-70 mt-1">
-                      Password must be at least 8 characters long.
-                    </p>
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label cursor-pointer justify-start gap-2">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-sm"
-                        required
-                      />
-                      <span className="text-xs leading-tight">
-                        I agree to the{" "}
-                        <span className="text-primary hover:underline">
-                          terms of service
-                        </span>{" "}
-                        and{" "}
-                        <span className="text-primary hover:underline">
-                          privacy policy
-                        </span>
-                      </span>
-                    </label>
-                  </div>
-
-                  <button type="submit" className="btn btn-primary w-full">
-                    {isPending ? (
-                      <>
-                        <span className="loading loading-spinner loading-xs"></span>
-                        Creating Account...
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
-                  </button>
-
-                  <div className="text-center mt-4">
-                    <p className="text-sm">
-                      Already have an account?
-                      <Link
-                        to="/login"
-                        className="text-primary hover:underline"
-                      >
-                        Sign in
-                      </Link>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </div>
+    <AuthLayout title="Create your account" subtitle="Find language partners and start talking today.">
+      {error && (
+        <div role="alert" className="alert alert-error mb-6 text-sm">
+          <AlertCircleIcon className="size-5" />
+          <span>{getErrorMessage(error)}</span>
         </div>
-        {/* Form Right Section */}
-        <div className="hidden lg:flex w-full lg:w-1/2 bg-primary/10 items-center justify-center">
-          <div className="max-w-md p-8">
-            <div className="relative aspect-square max-w-sm mx-auto">
-              <img
-                src="/Halloween video call.gif"
-                alt="Language connection ilustration"
-                className="w-full h-full"
-              />
-            </div>
+      )}
 
-            <div className="text-center space-y-3 mt-6">
-              <h2 className="text-2xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-                Connect with Language partners worldwide
-              </h2>
-              <p className="text-sm opacity-70">
-                Pratice converstaions, make friends and improve your language
-                skills together
-              </p>
-            </div>
+      <form onSubmit={handleSignup} className="space-y-4">
+        <label className="form-control w-full">
+          <div className="label">
+            <span className="label-text font-medium">Full name</span>
           </div>
-        </div>
-      </div>
-    </div>
+          <input
+            type="text"
+            placeholder="Jane Doe"
+            className="input input-bordered w-full"
+            value={signupData.fullName}
+            onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
+            autoComplete="name"
+            required
+          />
+        </label>
+
+        <label className="form-control w-full">
+          <div className="label">
+            <span className="label-text font-medium">Email</span>
+          </div>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            className="input input-bordered w-full"
+            value={signupData.email}
+            onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+            autoComplete="email"
+            required
+          />
+        </label>
+
+        <label className="form-control w-full">
+          <div className="label">
+            <span className="label-text font-medium">Password</span>
+            {signupData.password && (
+              <span className="label-text-alt text-base-content/60">{STRENGTH_LABEL[score]}</span>
+            )}
+          </div>
+          <PasswordInput
+            value={signupData.password}
+            onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+            autoComplete="new-password"
+            minLength={8}
+          />
+          <progress
+            className={`progress ${STRENGTH_COLOR[score]} mt-2 h-1.5 w-full`}
+            value={signupData.password ? Math.max(score, 0.5) : 0}
+            max="4"
+          />
+          <div className="label pt-1">
+            <span className="label-text-alt text-base-content/50">At least 8 characters</span>
+          </div>
+        </label>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-primary checkbox-sm mt-0.5"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            required
+          />
+          <span className="text-sm text-base-content/70">
+            I agree to the <span className="link link-primary">terms of service</span> and{" "}
+            <span className="link link-primary">privacy policy</span>
+          </span>
+        </label>
+
+        <button type="submit" className="btn btn-primary w-full" disabled={isPending || !agreed}>
+          {isPending && <span className="loading loading-spinner loading-sm" />}
+          {isPending ? "Creating account..." : "Create account"}
+        </button>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-base-content/70">
+        Already have an account?{" "}
+        <Link to="/login" className="link link-primary font-medium">
+          Log in
+        </Link>
+      </p>
+    </AuthLayout>
   );
-}
+};
 
-export default SignUpPage
+export default SignUpPage;

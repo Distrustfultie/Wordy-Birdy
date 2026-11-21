@@ -1,6 +1,7 @@
 import User from "../Models/User.js";
 import jwt from "jsonwebtoken";
 import { upsertStreamUser } from "../lib/stream.js";
+import { buildProfileUpdate, syncStreamUser } from "../lib/profile.js";
 
 export async function signup(req, res) {
   const { email, password, fullName } = req.body;
@@ -124,55 +125,18 @@ export function logout(req, res) {
 
 export async function onboard(req, res) {
   try {
-    const userId = req.user._id;
+    // Only whitelisted profile fields are writable; never spread req.body into
+    // the update, or clients could set friends, email, or an unhashed password.
+    const { updates, error } = buildProfileUpdate(req.body);
+    if (error) return res.status(400).json({ message: error });
 
-    const {
-      fullName,
-      bio,
-      nativeLanguage,
-      learningLanguage,
-      location,
-      profilePic,
-    } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { ...updates, isOnboarded: true },
+      { new: true, runValidators: true }
+    );
 
-    if (
-      !fullName ||
-      !bio ||
-      !nativeLanguage ||
-      !learningLanguage ||
-      !location
-    ) {
-      return res.status(400).json({
-        message: "All fields are required",
-      });
-    }
-
-    // Only profile fields are writable here; never spread req.body into the update,
-    // or clients could set friends, email, or an unhashed password.
-    const updates = {
-      fullName,
-      bio,
-      nativeLanguage,
-      learningLanguage,
-      location,
-      isOnboarded: true,
-    };
-    if (profilePic) updates.profilePic = profilePic;
-
-    const updatedUser = await User.findByIdAndUpdate(userId, updates, {
-      new: true,
-      runValidators: true,
-    });
-
-    try {
-      await upsertStreamUser({
-        id: updatedUser._id.toString(),
-        name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
-      });
-    } catch (error) {
-      console.log("Error updating Stream user after onboarding:", error);
-    }
+    await syncStreamUser(updatedUser);
 
     res.status(200).json({
       success: true,

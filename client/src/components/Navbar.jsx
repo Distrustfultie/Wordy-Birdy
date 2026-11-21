@@ -1,71 +1,66 @@
-import React from 'react'
-import useAuthUser from '../hooks/useAuthUser'
-import { Link, useLocation } from 'react-router';
-import { BellIcon, Bird, LogOutIcon } from 'lucide-react'
-import ThemeSelector from './ThemeSelector';
-import useLogout from '../hooks/useLogout';
+import { Link } from "react-router-dom";
+import { BellIcon, LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
+import useLogout from "../hooks/useLogout";
+import { useFriendRequests } from "../hooks/useFriendRequests";
+import ThemeSelector from "./ThemeSelector";
+import Logo from "./Logo";
+import Avatar from "./Avatar";
+import { Dropdown, DropdownDivider, DropdownItem } from "./ui/Dropdown";
 
-/**
- * Renders the navigation bar at the top of the page. The navbar contains links
- * to the notifications page and the user's profile picture. The user can click
- * on their profile picture to log out.
- *
- * The navbar also shows the WordyBirdy logo when the user is in the chat page.
- *
- * @returns {React.ReactElement} A JSX element representing the navbar.
- */
 const Navbar = () => {
   const { authUser } = useAuthUser();
-  const location = useLocation();
-  const isChatPage = location.pathname?.startsWith("/chat");
-
-  const { logoutMutation } = useLogout();
-
+  const { confirmLogout } = useLogout();
+  const { incomingReqs } = useFriendRequests();
 
   return (
-    <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30 h-16 flex items-center">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-end w-full">
-          {/* LOGO - Only in the Chat Page */}
-          {isChatPage && (
-            <div className="pl-5">
-              <Link to="/" className="flex items-center gap-2.5">
-                <Bird className="size-9 text-primary" />
-                <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-                  WordyBirdy
-                </span>
-              </Link>
-            </div>
-          )}
+    <header className="sticky top-0 z-30 h-16 lg:h-20 flex items-center border-b border-base-300 bg-base-100/80 backdrop-blur-md">
+      <div className="flex w-full items-center gap-2 px-4 sm:px-6 lg:px-8">
+        {/* The sidebar (with the logo) is hidden below lg. */}
+        <div className="lg:hidden">
+          <Logo size="sm" />
+        </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            <Link to={"/notifications"}>
-              <button className="btn btn-ghost btn-circle">
-                <BellIcon className="h-6 w-6 text-base-content opacity-70" />
-              </button>
-            </Link>
-          </div>
-
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <ThemeSelector />
 
-          <div className="avatar">
-            <div className="w-9 rounded-full">
-              <img
-                src={authUser?.profilePic}
-                alt="User Avatar"
-                rel="noreferrer"
-              />
+          <Link to="/notifications" className="btn btn-ghost btn-circle" aria-label="Notifications">
+            <div className="indicator">
+              <BellIcon className="size-5" />
+              {incomingReqs.length > 0 && (
+                <span className="badge badge-primary badge-xs indicator-item">{incomingReqs.length}</span>
+              )}
             </div>
-          </div>
+          </Link>
 
-          <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
-            <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
-          </button>
+          <Dropdown
+            label="Account menu"
+            width="w-64"
+            trigger={<Avatar src={authUser?.profilePic} name={authUser?.fullName} size="xs" />}
+          >
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <Avatar src={authUser?.profilePic} name={authUser?.fullName} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{authUser?.fullName}</p>
+                <p className="truncate text-xs text-base-content/60">{authUser?.email}</p>
+              </div>
+            </div>
+            <DropdownDivider />
+            <DropdownItem icon={UserIcon} to={`/profile/${authUser?._id}`}>
+              My profile
+            </DropdownItem>
+            <DropdownItem icon={SettingsIcon} to="/settings">
+              Settings
+            </DropdownItem>
+            <DropdownDivider />
+            <DropdownItem icon={LogOutIcon} danger onClick={confirmLogout}>
+              Log out
+            </DropdownItem>
+          </Dropdown>
         </div>
       </div>
-    </nav>
+    </header>
   );
+};
 
-}
-
-export default Navbar
+export default Navbar;

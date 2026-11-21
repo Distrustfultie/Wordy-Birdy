@@ -1,32 +1,30 @@
-import React from 'react'
-import Sidebar from './Sidebar'
-import Navbar from './Navbar'
+import Sidebar from "./Sidebar";
+import Navbar from "./Navbar";
+import MobileNav from "./MobileNav";
 
 /**
- * The Layout component is a wrapper for the main content of the page. It
- * contains a sidebar and a navbar, and the main content is rendered as
- * children of the Layout component.
- *
- * The `showSidebar` prop is an optional boolean that determines whether the
- * sidebar should be shown. If it is not provided, the sidebar will not be shown.
- *
- * @param {{ children: React.ReactNode, showSidebar?: boolean }} props
- * @returns {React.ReactElement}
+ * App shell for logged-in pages: sidebar (desktop), top bar, and a bottom tab
+ * bar on mobile.
+ * `fullHeight` makes the page fill the viewport instead of scrolling (chat),
+ * and hides the mobile tab bar to give the conversation more room.
  */
-const Layout = ({ children, showSidebar = false }) => {
-    return <div className="min-h-screen" >
-        <div className="flex" >
-            {showSidebar && <Sidebar />}
-            <div className="flex-1 flex flex-col" >
-                <Navbar />
-
-                <main className="flex-1 overflow-y-auto" >
-                    {children}
-                </main>
-            </div>
-        </div>
+const Layout = ({ children, fullHeight = false }) => (
+  <div className="min-h-screen flex bg-base-100">
+    <Sidebar />
+    <div className="flex-1 min-w-0 flex flex-col">
+      <Navbar />
+      <main
+        className={
+          fullHeight
+            ? "h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-5rem)] overflow-hidden"
+            : "flex-1 pb-24 lg:pb-10"
+        }
+      >
+        {children}
+      </main>
+      {!fullHeight && <MobileNav />}
     </div>
+  </div>
+);
 
-}
-
-export default Layout
+export default Layout;

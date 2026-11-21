@@ -1,85 +1,89 @@
-import React from 'react'
-import useAuthUser from '../hooks/useAuthUser';
-import { Link, useLocation } from 'react-router';
-import { BellIcon, Bird, HomeIcon, UsersIcon } from 'lucide-react';
+import { NavLink, Link } from "react-router-dom";
+import { SettingsIcon, SparklesIcon } from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
+import useNavItems from "../hooks/useNavItems";
+import Logo from "./Logo";
+import Avatar from "./Avatar";
+import { LanguageFlag } from "./LanguageBadge";
+import { useStreamChat } from "../context/StreamChatContext";
 
-/**
- * Sidebar component renders a vertical navigation panel on the side of the page.
- * It includes links to the home, friends, and notifications pages, and displays
- * the user's profile picture and name at the bottom. The currently active page
- * link is highlighted. The sidebar is only visible on larger screens.
- *
- * @returns {React.ReactElement} A JSX element representing the sidebar.
- */
+const badgeText = (n) => (n > 99 ? "99+" : n);
 
 const Sidebar = () => {
-    const {authUser} = useAuthUser();
-    const location = useLocation();
-    const currentPath = location.pathname;
+  const { authUser } = useAuthUser();
+  const { client } = useStreamChat();
+  const items = useNavItems();
 
   return (
-    <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
-      <div className="p-5 border-b border-base-300">
-        <Link to="/" className="flex items-center gap-2.5">
-          <Bird className="size-9 text-primary" />
-          <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-            WordyBirdy
-          </span>
-        </Link>
+    <aside className="hidden lg:flex w-72 shrink-0 flex-col h-screen sticky top-0 bg-base-200/60 border-r border-base-300">
+      <div className="px-6 h-20 flex items-center">
+        <Logo />
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        <Link
-          to="/"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/" ? "btn-active" : ""
-          }`}
-        >
-          <HomeIcon className="size-5 text-base-content opacity-70" />
-          <span>Home</span>
-        </Link>
-
-        <Link
-          to="/friends"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/friends" ? "btn-active" : ""
-          }`}
-        >
-          <UsersIcon className="size-5 text-base-content opacity-70" />
-          <span>Friends</span>
-        </Link>
-
-        <Link
-          to="/notifications"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/notifications" ? "btn-active" : ""
-          }`}
-        >
-          <BellIcon className="size-5 text-base-content opacity-70" />
-          <span>Notifications</span>
-        </Link>
+      <nav className="flex-1 px-4 py-2 space-y-1">
+        {items.map(({ to, label, icon: Icon, badge, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-primary text-primary-content shadow-md shadow-primary/20"
+                  : "text-base-content/75 hover:bg-base-300 hover:text-base-content"
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon className="size-5" />
+                <span className="flex-1">{label}</span>
+                {badge > 0 && (
+                  <span className={`badge badge-sm ${isActive ? "badge-ghost" : "badge-primary"}`}>
+                    {badgeText(badge)}
+                  </span>
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
 
-      <div className="p-4 border-t border-base-300 mt-auto" >
-        <div className="flex items-center gap-3" >
-            <div className="avatar" >
-                <div className="w-10 rounded-full" >
-                    <img src={authUser?.profilePic} alt="User Avatar" />
-                </div>
+      {authUser?.learningLanguage && (
+        <div className="mx-4 mb-4 rounded-2xl bg-gradient-to-br from-primary/15 to-secondary/15 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <SparklesIcon className="size-4 text-primary" />
+            Today&apos;s goal
+          </div>
+          <p className="mt-1 text-xs text-base-content/70 leading-relaxed">
+            Have one conversation in{" "}
+            <span className="inline-flex items-center gap-1 font-medium text-base-content">
+              <LanguageFlag language={authUser.learningLanguage} />
+              {authUser.learningLanguage}
+            </span>
+            . Small daily chats add up fast!
+          </p>
+        </div>
+      )}
+
+      <div className="p-4 border-t border-base-300">
+        <div className="flex items-center gap-3">
+          <Link to={`/profile/${authUser?._id}`} className="flex flex-1 min-w-0 items-center gap-3 rounded-xl p-2 hover:bg-base-300 transition-colors">
+            <Avatar src={authUser?.profilePic} name={authUser?.fullName} size="sm" online={Boolean(client)} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{authUser?.fullName}</p>
+              <p className={`text-xs ${client ? "text-success" : "text-base-content/50"}`}>
+                {client ? "Online" : "Connecting..."}
+              </p>
             </div>
-            <div className="flex-1" >
-                <p className="font-semibold text-sm" >{authUser?.fullName}</p>
-                <p className="text-xs text-success flex items-center gap-1" >
-                    <span className="size-2 rounded-full bg-success inline-block" />
-                    Online
-                </p>
-            </div>
+          </Link>
+          <Link to="/settings" className="btn btn-ghost btn-sm btn-square" aria-label="Settings">
+            <SettingsIcon className="size-5" />
+          </Link>
         </div>
       </div>
-
     </aside>
   );
+};
 
-}
-
-export default Sidebar
+export default Sidebar;

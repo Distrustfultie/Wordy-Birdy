@@ -1,144 +1,162 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
-import NoNotificationsFound from "../components/NoNotificationsFound";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { BellIcon, CheckIcon, ClockIcon, InboxIcon, MessageCircleIcon, SendIcon, XIcon } from "lucide-react";
+import { useFriendRequests, useOutgoingRequests } from "../hooks/useFriendRequests";
+import useFriendActions from "../hooks/useFriendActions";
+import { timeAgo } from "../lib/utilis";
+import Avatar from "../components/Avatar";
+import LanguageBadge from "../components/LanguageBadge";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import { ListSkeleton } from "../components/Skeletons";
 
-/**
- * NotificationsPage is a page that displays a list of incoming and accepted
- * friend requests, as well as notifications for new connections.
- *
- * @returns {React.ReactElement} A JSX element representing the component.
- */
+const Row = ({ user, children, meta }) => (
+  <div className="flex flex-col gap-4 rounded-2xl border border-base-300 bg-base-200 p-4 sm:flex-row sm:items-center">
+    <Link to={`/profile/${user._id}`} className="flex min-w-0 flex-1 items-center gap-3">
+      <Avatar src={user.profilePic} name={user.fullName} size="md" />
+      <div className="min-w-0">
+        <p className="truncate font-semibold hover:text-primary">{user.fullName}</p>
+        {meta}
+      </div>
+    </Link>
+    <div className="flex gap-2">{children}</div>
+  </div>
+);
+
 const NotificationsPage = () => {
-  const queryClient = useQueryClient();
+  const [tab, setTab] = useState("received");
+  const { incomingReqs, acceptedReqs, isLoading } = useFriendRequests();
+  const { outgoingReqs, isLoading: loadingOutgoing } = useOutgoingRequests();
+  const { acceptRequest, acceptingId, declineRequest, cancelRequest, removingRequestId } = useFriendActions();
 
-  const { data: friendRequests, isLoading } = useQuery({
-    queryKey: ["friendRequests"],
-    queryFn: getFriendRequests,
-  });
-
-  const { mutate: acceptRequestMutation, isPending } = useMutation({
-    mutationFn: acceptFriendRequest,
-    /**
-     * Invalidates the cached friend requests and friends queries after a
-     * friend request has been accepted.
-     */
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-    },
-  });
-
-  const incomingRequests = friendRequests?.incomingReqs || [];
-  const acceptedRequests = friendRequests?.acceptedReqs || [];
+  const tabs = [
+    { id: "received", label: "Requests", count: incomingReqs.length, icon: InboxIcon },
+    { id: "sent", label: "Sent", count: outgoingReqs.length, icon: SendIcon },
+    { id: "activity", label: "Activity", count: 0, icon: BellIcon },
+  ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="container mx-auto max-w-4xl space-y-8">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
+    <div className="mx-auto max-w-3xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <PageHeader title="Notifications" subtitle="Friend requests and what's new with your connections." />
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <span className="loading loading-spinner loading-lg"></span>
-          </div>
-        ) : (
-          <>
-            {incomingRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <UserCheckIcon className="h-5 w-5 text-primary" />
-                  Friend Requests
-                  <span className="badge badge-primary ml-2">{incomingRequests.length}</span>
-                </h2>
-
-                <div className="space-y-3">
-                  {incomingRequests.map((request) => (
-                    <div
-                      key={request._id}
-                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      <div className="card-body p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={request.sender.profilePic} alt={request.sender.fullName} />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold">{request.sender.fullName}</h3>
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <span className="badge badge-secondary badge-sm">
-                                  Native: {request.sender.nativeLanguage}
-                                </span>
-                                <span className="badge badge-outline badge-sm">
-                                  Learning: {request.sender.learningLanguage}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptRequestMutation(request._id)}
-                            disabled={isPending}
-                          >
-                            Accept
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ACCEPTED REQS NOTIFICATONS */}
-            {acceptedRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-success" />
-                  New Connections
-                </h2>
-
-                <div className="space-y-3">
-                  {acceptedRequests.map((notification) => (
-                    <div key={notification._id} className="card bg-base-200 shadow-sm">
-                      <div className="card-body p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
-                            <img
-                              src={notification.recipient.profilePic}
-                              alt={notification.recipient.fullName}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{notification.recipient.fullName}</h3>
-                            <p className="text-sm my-1">
-                              {notification.recipient.fullName} accepted your friend request
-                            </p>
-                            <p className="text-xs flex items-center opacity-70">
-                              <ClockIcon className="h-3 w-3 mr-1" />
-                              Recently
-                            </p>
-                          </div>
-                          <div className="badge badge-success">
-                            <MessageSquareIcon className="h-3 w-3 mr-1" />
-                            New Friend
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && (
-              <NoNotificationsFound />
-            )}
-          </>
-        )}
+      <div role="tablist" className="tabs tabs-boxed w-full sm:w-fit">
+        {tabs.map(({ id, label, count, icon: Icon }) => (
+          <button
+            key={id}
+            role="tab"
+            className={`tab gap-2 ${tab === id ? "tab-active" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            <Icon className="size-4" />
+            {label}
+            {count > 0 && <span className="badge badge-sm">{count}</span>}
+          </button>
+        ))}
       </div>
+
+      {tab === "received" &&
+        (isLoading ? (
+          <ListSkeleton />
+        ) : incomingReqs.length === 0 ? (
+          <EmptyState
+            icon={InboxIcon}
+            title="No pending requests"
+            description="When someone wants to practice with you, their request shows up here."
+          />
+        ) : (
+          <div className="space-y-3">
+            {incomingReqs.map((req) => (
+              <Row
+                key={req._id}
+                user={req.sender}
+                meta={
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <LanguageBadge language={req.sender.nativeLanguage} kind="native" />
+                    <LanguageBadge language={req.sender.learningLanguage} kind="learning" />
+                    <span className="text-xs text-base-content/50">{timeAgo(req.createdAt)}</span>
+                  </div>
+                }
+              >
+                <button
+                  className="btn btn-primary btn-sm flex-1 sm:flex-none"
+                  onClick={() => acceptRequest(req._id)}
+                  disabled={acceptingId === req._id}
+                >
+                  <CheckIcon className="size-4" /> Accept
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm flex-1 sm:flex-none"
+                  onClick={() => declineRequest(req._id, req.sender.fullName)}
+                  disabled={removingRequestId === req._id}
+                >
+                  <XIcon className="size-4" /> Decline
+                </button>
+              </Row>
+            ))}
+          </div>
+        ))}
+
+      {tab === "sent" &&
+        (loadingOutgoing ? (
+          <ListSkeleton />
+        ) : outgoingReqs.length === 0 ? (
+          <EmptyState
+            icon={SendIcon}
+            title="No requests waiting"
+            description="Requests you send stay here until they're accepted."
+            action={<Link to="/" className="btn btn-primary btn-sm">Find partners</Link>}
+          />
+        ) : (
+          <div className="space-y-3">
+            {outgoingReqs.map((req) => (
+              <Row
+                key={req._id}
+                user={req.recipient}
+                meta={
+                  <p className="flex items-center gap-1 text-xs text-base-content/60">
+                    <ClockIcon className="size-3" /> Sent {timeAgo(req.createdAt)}
+                  </p>
+                }
+              >
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => cancelRequest(req._id, req.recipient.fullName)}
+                  disabled={removingRequestId === req._id}
+                >
+                  <XIcon className="size-4" /> Cancel
+                </button>
+              </Row>
+            ))}
+          </div>
+        ))}
+
+      {tab === "activity" &&
+        (isLoading ? (
+          <ListSkeleton />
+        ) : acceptedReqs.length === 0 ? (
+          <EmptyState icon={BellIcon} title="Nothing new yet" description="We'll let you know when someone accepts your request." />
+        ) : (
+          <div className="space-y-3">
+            {acceptedReqs.map((req) => (
+              <Row
+                key={req._id}
+                user={req.recipient}
+                meta={
+                  <p className="text-sm text-base-content/70">
+                    accepted your friend request ·{" "}
+                    <span className="text-xs text-base-content/50">{timeAgo(req.updatedAt)}</span>
+                  </p>
+                }
+              >
+                <Link to={`/chat/${req.recipient._id}`} className="btn btn-outline btn-sm">
+                  <MessageCircleIcon className="size-4" /> Say hi
+                </Link>
+              </Row>
+            ))}
+          </div>
+        ))}
     </div>
   );
 };
+
 export default NotificationsPage;

@@ -1,25 +1,19 @@
-import { LoaderPinwheel } from 'lucide-react';
-import React from 'react'
-import { useThemeStore } from '../store/useThemeStore';
+import { Bird } from "lucide-react";
+import { useThemeStore } from "../store/useThemeStore";
 
-/**
- * PageLoader is a full-screen component that displays a spinning
- * LoaderPinwheel icon, filling the available space. It uses the
- * current theme from the useThemeStore hook to set the theme on the
- * container element.
- *
- * @returns {JSX.Element} The PageLoader component.
- */
 const PageLoader = () => {
-  const { theme } =useThemeStore();
+  const { theme } = useThemeStore();
   return (
     <div
-      className=" min-h-screen flex items-center justify-center "
+      className="min-h-screen flex flex-col items-center justify-center gap-4 bg-base-100"
       data-theme={theme}
     >
-      <LoaderPinwheel className="animate-spin size-10 text-primary" />
+      <div className="rounded-3xl bg-gradient-to-br from-primary to-secondary p-4 text-primary-content shadow-lg shadow-primary/30 animate-bounce">
+        <Bird className="size-10" />
+      </div>
+      <span className="loading loading-dots loading-md text-primary" />
     </div>
   );
-}
+};
 
-export default PageLoader
+export default PageLoader;

@@ -1,60 +1,48 @@
-import { PaletteIcon } from "lucide-react";
+import { CheckIcon, PaletteIcon } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore";
 import { THEMES } from "../constants";
+import { Dropdown, DropdownItem, DropdownLabel } from "./ui/Dropdown";
 
-/**
- * ThemeSelector is a dropdown component that lets users change the theme of the
- * application. It uses the useThemeStore hook to get the current theme and to
- * update the theme when a new theme is selected.
- *
- * @returns {React.ReactElement} The ThemeSelector component.
- */
+/** Preview swatches for a theme. */
+export const ThemeSwatches = ({ colors }) => (
+  <span className="flex gap-1">
+    {colors.map((color, i) => (
+      <span
+        key={i}
+        className="size-2.5 rounded-full ring-1 ring-base-content/10"
+        style={{ backgroundColor: color }}
+      />
+    ))}
+  </span>
+);
+
+/** Compact theme picker for the top bar. */
 const ThemeSelector = () => {
   const { theme, setTheme } = useThemeStore();
 
   return (
-    <div className="dropdown dropdown-end">
-      {/* DROPDOWN TRIGGER */}
-      <button tabIndex={0} className="btn btn-ghost btn-circle">
-        <PaletteIcon className="size-5" />
-      </button>
-
-      <div
-        tabIndex={0}
-        className="dropdown-content mt-2 p-1 shadow-2xl bg-base-200 backdrop-blur-lg rounded-2xl
-        w-56 border border-base-content/10 max-h-80 overflow-y-auto"
-      >
-        <div className="space-y-1">
-          {THEMES.map((themeOption) => (
-            <button
-              key={themeOption.name}
-              className={`
-              w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-colors
-              ${
-                theme === themeOption.name
-                  ? "bg-primary/10 text-primary"
-                  : "hover:bg-base-content/5"
-              }
-            `}
-              onClick={() => setTheme(themeOption.name)}
-            >
-              <PaletteIcon className="size-4" />
-              <span className="text-sm font-medium">{themeOption.label}</span>
-              {/* THEME PREVIEW COLORS */}
-              <div className="ml-auto flex gap-1">
-                {themeOption.colors.map((color, i) => (
-                  <span
-                    key={i}
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <Dropdown trigger={<PaletteIcon className="size-5" />} label="Change theme" width="w-64" panelClassName="max-h-96 overflow-y-auto">
+      <DropdownLabel>Theme</DropdownLabel>
+      {THEMES.map((option) => {
+        const active = theme === option.name;
+        return (
+          <DropdownItem
+            key={option.name}
+            active={active}
+            onClick={() => setTheme(option.name)}
+            trailing={
+              <span className="flex items-center gap-2">
+                <ThemeSwatches colors={option.colors} />
+                <CheckIcon className={`size-4 ${active ? "opacity-100" : "opacity-0"}`} />
+              </span>
+            }
+          >
+            {option.label}
+          </DropdownItem>
+        );
+      })}
+    </Dropdown>
   );
 };
+
 export default ThemeSelector;

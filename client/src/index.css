@@ -2,33 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-.str-chat__channel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(to bottom, #c9e8c9, #b7e7bb);
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-base-100 text-base-content antialiased;
+  }
+}
+
+/*
+ * Stream Chat, themed from the active DaisyUI theme.
+ * DaisyUI v4 exposes colors as OKLCH channels (--p, --b1, ...), so they are wrapped in oklch().
+ * Selectors are prefixed with our wrappers so they win over Stream's own theme classes.
+ */
+.wb-chat .str-chat,
+.wb-inbox .str-chat {
+  --str-chat__font-family: inherit;
+  --str-chat__primary-color: oklch(var(--p));
+  --str-chat__active-primary-color: oklch(var(--p) / 0.85);
+  --str-chat__on-primary-color: oklch(var(--pc));
+  --str-chat__background-color: oklch(var(--b1));
+  --str-chat__secondary-background-color: oklch(var(--b1));
+  --str-chat__surface-color: oklch(var(--b2));
+  --str-chat__secondary-surface-color: oklch(var(--b2));
+  --str-chat__tertiary-surface-color: oklch(var(--b3));
+  --str-chat__primary-surface-color: oklch(var(--p) / 0.12);
+  --str-chat__text-color: oklch(var(--bc));
+  --str-chat__text-low-emphasis-color: oklch(var(--bc) / 0.6);
+  --str-chat__disabled-color: oklch(var(--bc) / 0.3);
+  --str-chat__danger-color: oklch(var(--er));
+  --str-chat__unread-badge-color: oklch(var(--p));
+  --str-chat__on-unread-badge-color: oklch(var(--pc));
+  --str-chat__message-bubble-background-color: oklch(var(--b2));
+  --str-chat__message-bubble-color: oklch(var(--bc));
+  --str-chat__own-message-bubble-background-color: oklch(var(--p));
+  --str-chat__own-message-bubble-color: oklch(var(--pc));
+  --str-chat__avatar-background-color: oklch(var(--b3));
+  --str-chat__message-bubble-border-radius: 1.125rem;
+  background: transparent;
+}
+
+.wb-chat .str-chat,
+.wb-chat .str-chat__channel,
+.wb-chat .str-chat__container {
   height: 100%;
 }
 
-.str-chat__container {
-  max-width: 1200px;
-  width: 100%;
-  height: 80% !important;
-  margin: 0 auto !important;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+.wb-chat .str-chat__main-panel {
+  min-width: 0;
 }
 
-.str-chat__list {
-  background-color: #ffffff;
-  padding: 12px;
+.wb-chat .str-chat__list {
+  padding-inline: 0.75rem;
 }
 
-.str-chat__list-notifications {
+.wb-chat .str-chat__list-notifications {
   display: none;
 }
 
-.str-chat__message-input {
-  border-top: 1px solid #ddd;
+/* The inbox uses our own preview rows; strip Stream's list chrome. */
+.wb-inbox .str-chat__channel-list {
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.wb-inbox .str-chat__channel-list-messenger,
+.wb-inbox .str-chat__channel-list-messenger__main {
+  padding: 0;
+  background: transparent;
+}
+
+.wb-inbox .str-chat__channel-list-messenger__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+/* Stream Video controls sit nicely under the speaker layout. */
+.str-video .str-video__call-controls {
+  justify-content: center;
+  padding-block: 1rem;
 }

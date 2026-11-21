@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router"
-import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
-import PageLoader from "../components/PageLoader";
-
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   StreamVideo,
   StreamVideoClient,
@@ -15,20 +10,16 @@ import {
   CallingState,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import "@stream-io/video-react-sdk/dist/css/styles.css"
+import "@stream-io/video-react-sdk/dist/css/styles.css";
 import toast from "react-hot-toast";
+import { ArrowLeftIcon, UsersIcon, VideoOffIcon } from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
+import useStreamToken from "../hooks/useStreamToken";
+import PageLoader from "../components/PageLoader";
+import Logo from "../components/Logo";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
-/**
- * The CallPage component is a full-screen component that renders a
- * video call page. It uses the useAuthUser hook to get the current
- * authenticated user and the useQuery hook to get a Stream token.
- * It then uses the StreamVideoClient and StreamCall components to
- * join a call and render the video call UI.
- *
- * @returns {React.ReactElement} The CallPage component.
- */
 const CallPage = () => {
   const { id: callId } = useParams();
   const [client, setClient] = useState(null);
@@ -36,37 +27,23 @@ const CallPage = () => {
   const [isConnecting, setIsConnecting] = useState(true);
 
   const { authUser, isLoading } = useAuthUser();
-
-  // Keyed by user id so a cached token is never reused for a different account.
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken", authUser?._id],
-    queryFn: getStreamToken,
-    enabled: !!authUser
-  });
+  const { token, error: tokenError } = useStreamToken();
 
   useEffect(() => {
-    if (!tokenData?.token || !authUser) return;
+    if (!token || !authUser) return;
 
     const videoClient = new StreamVideoClient({
       apiKey: STREAM_API_KEY,
-      user: {
-        id: authUser._id,
-        name: authUser.fullName,
-        image: authUser.profilePic,
-      },
-      token: tokenData.token,
+      user: { id: authUser._id, name: authUser.fullName, image: authUser.profilePic },
+      token,
     });
     const callInstance = videoClient.call("default", callId);
     let cancelled = false;
 
-    /**
-     * Joins (creating if needed) the call for this page's call id.
-     */
-    const initCall = async () => {
+    const joining = (async () => {
       try {
         await callInstance.join({ create: true });
         if (cancelled) return;
-
         setClient(videoClient);
         setCall(callInstance);
       } catch (error) {
@@ -76,9 +53,7 @@ const CallPage = () => {
       } finally {
         if (!cancelled) setIsConnecting(false);
       }
-    };
-
-    const joining = initCall();
+    })();
 
     // Leave the call and close the connection when navigating away,
     // so the camera/mic are released and the user drops out of the call.
@@ -95,58 +70,79 @@ const CallPage = () => {
         .catch((error) => console.error("Error leaving call", error))
         .finally(() => videoClient.disconnectUser());
     };
-  }, [tokenData, authUser, callId]);
+  }, [token, authUser, callId]);
 
-  if (isLoading || isConnecting) return <PageLoader />;
+  if (isLoading || (isConnecting && !tokenError)) return <PageLoader />;
+
+  if (!client || !call) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-base-100 p-6 text-center">
+        <div className="rounded-2xl bg-error/10 p-4 text-error">
+          <VideoOffIcon className="size-10" />
+        </div>
+        <h1 className="text-2xl font-bold">Couldn&apos;t join the call</h1>
+        <p className="max-w-sm text-base-content/70">
+          Check your connection and camera permissions, then try again.
+        </p>
+        <div className="flex gap-2">
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+          <Link to="/messages" className="btn btn-ghost">
+            Back to messages
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center">
-      <div className="relative">
-        {client && call ? (
-          <StreamVideo client={client}>
-            <StreamCall call={call}>
-              <CallContent />
-            </StreamCall>
-          </StreamVideo>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p>Could not initialize call. Please refresh or try again later.</p>
-          </div>
-        )}
-      </div>
-    </div>
+    <StreamVideo client={client}>
+      <StreamCall call={call}>
+        <CallContent />
+      </StreamCall>
+    </StreamVideo>
   );
-
 };
 
-/**
- * A component that renders the call content. It checks if the user is in
- * a call and if the call has ended. If the call has ended, it navigates
- * the user back to the home page.
- * @returns {React.ReactElement} A JSX element representing the component.
- */
-
+/** In-call UI. Returns home once the user leaves the call. */
 const CallContent = () => {
-
-  const { useCallCallingState } = useCallStateHooks()
+  const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
-
+  const participantCount = useParticipantCount();
   const navigate = useNavigate();
 
   // Navigation is a side effect, so it belongs in an effect rather than in render.
   useEffect(() => {
-    if (callingState === CallingState.LEFT) navigate("/");
+    if (callingState === CallingState.LEFT) navigate("/messages");
   }, [callingState, navigate]);
 
   if (callingState === CallingState.LEFT) return null;
 
   return (
-    < StreamTheme >
-      <SpeakerLayout />
-      <CallControls />
-    </StreamTheme >
+    <div className="min-h-screen flex flex-col bg-neutral text-neutral-content">
+      <header className="flex items-center gap-3 px-4 py-3 sm:px-6">
+        <button className="btn btn-ghost btn-sm btn-circle" onClick={() => navigate(-1)} aria-label="Back">
+          <ArrowLeftIcon className="size-5" />
+        </button>
+        <Logo size="sm" />
+        <span className="ml-auto badge badge-ghost gap-1.5">
+          <UsersIcon className="size-3.5" /> {participantCount} in call
+        </span>
+      </header>
+      <div className="flex-1 px-2 pb-4 sm:px-6">
+        <StreamTheme className="h-full">
+          {participantCount <= 1 && (
+            <p className="mb-3 text-center text-sm opacity-70">
+              Waiting for your partner to join... they&apos;ll get the link in your chat.
+            </p>
+          )}
+          <SpeakerLayout />
+          <CallControls />
+        </StreamTheme>
+      </div>
+    </div>
   );
-
 };
 
 export default CallPage;

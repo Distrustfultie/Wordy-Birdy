@@ -1,23 +1,13 @@
-import { LoaderPinwheel } from 'lucide-react'
-import React from 'react'
+import { MessageCircleIcon } from "lucide-react";
 
-/**
- * ChatLoader is a component that displays a full-screen loading indicator
- * with a spinning LoaderPinwheel icon and a message indicating that the
- * chat is connecting. It is centered both vertically and horizontally.
- *
- * @returns {JSX.Element} The ChatLoader component.
- */
-
-const ChatLoader = () => {
-  return (
-    <div className="h-screen flex flex-col items-center justify-center p-4" >
-        <LoaderPinwheel className="animate-spin size-10 text-primary" />
-        <p className="mt-4 text-center text-lg font-mono" >
-            Connecting to chat...
-        </p>
+const ChatLoader = ({ label = "Connecting to chat..." }) => (
+  <div className="h-full min-h-[60vh] flex flex-col items-center justify-center gap-3 p-4">
+    <div className="rounded-2xl bg-primary/10 p-4 text-primary">
+      <MessageCircleIcon className="size-8 animate-pulse" />
     </div>
-  )
-}
+    <p className="text-sm text-base-content/70">{label}</p>
+    <span className="loading loading-dots loading-sm text-primary" />
+  </div>
+);
 
-export default ChatLoader
+export default ChatLoader;

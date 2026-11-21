@@ -1,68 +1,66 @@
-import { Link } from "react-router";
-import { LANGUAGE_TO_FLAG } from "../constants";
+import { Link } from "react-router-dom";
+import { EllipsisVerticalIcon, MapPinIcon, MessageCircleIcon, UserIcon, UserMinusIcon } from "lucide-react";
+import Avatar from "./Avatar";
+import LanguageBadge from "./LanguageBadge";
+import { Dropdown, DropdownDivider, DropdownItem } from "./ui/Dropdown";
 
-/**
- * FriendCard is a component that displays a friend's information, including their profile
- * picture, name, native language, learning language, and a link to chat with them.
- * @param {{ friend: { _id: string, fullName: string, profilePic: string, nativeLanguage: string, learningLanguage: string } }} props
- * @returns {React.ReactElement} The FriendCard component.
- */
-const FriendCard = ({ friend }) => {
-    return (
-      <div className="card bg-base-200 hover:shadow-md transition-shadow">
-        <div className="card-body p-4">
-          {/* {USER INFO} */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className="avatar size-12">
-              <img src={friend.profilePic} alt={friend.fullName} />
-            </div>
-            <h3 className="font-semibold truncate">{friend.fullName}</h3>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="badge badge-secondary text-xs">
-              {getLanguageFlag(friend.nativeLanguage)}
-              Native: {friend.nativeLanguage}
-            </span>
-            <span className="badge badge-outline text-xs">
-              {getLanguageFlag(friend.learningLanguage)}
-              Learning: {friend.learningLanguage}
-            </span>
-          </div>
-
-          <Link to={`/chat/${friend._id}`} className="btn btn-outline w-full" >
-          Message
+/** A friend, with quick actions. `onUnfriend` is optional (omit to hide the menu). */
+const FriendCard = ({ friend, online, onUnfriend }) => (
+  <div className="card bg-base-200 border border-base-300 hover:border-primary/40 hover:shadow-lg transition-all duration-200">
+    <div className="card-body p-5 gap-4">
+      <div className="flex items-start gap-3">
+        <Link to={`/profile/${friend._id}`} className="shrink-0">
+          <Avatar src={friend.profilePic} name={friend.fullName} size="lg" online={online} />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Link
+            to={`/profile/${friend._id}`}
+            className="block truncate font-semibold text-lg hover:text-primary transition-colors"
+          >
+            {friend.fullName}
           </Link>
-
+          <p className={`text-xs ${online ? "text-success" : "text-base-content/50"}`}>
+            {online ? "Online now" : "Offline"}
+          </p>
+          {friend.location && (
+            <p className="flex items-center gap-1 text-xs text-base-content/60">
+              <MapPinIcon className="size-3 shrink-0" />
+              <span className="truncate">{friend.location}</span>
+            </p>
+          )}
         </div>
-      </div>
-    );
 
-};
+        {onUnfriend && (
+          <Dropdown
+            label={`Actions for ${friend.fullName}`}
+            triggerClassName="btn btn-ghost btn-sm btn-circle"
+            trigger={<EllipsisVerticalIcon className="size-4" />}
+            width="w-48"
+          >
+            <DropdownItem icon={MessageCircleIcon} to={`/chat/${friend._id}`}>
+              Message
+            </DropdownItem>
+            <DropdownItem icon={UserIcon} to={`/profile/${friend._id}`}>
+              View profile
+            </DropdownItem>
+            <DropdownDivider />
+            <DropdownItem icon={UserMinusIcon} danger onClick={() => onUnfriend(friend)}>
+              Unfriend
+            </DropdownItem>
+          </Dropdown>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <LanguageBadge language={friend.nativeLanguage} kind="native" />
+        <LanguageBadge language={friend.learningLanguage} kind="learning" />
+      </div>
+
+      <Link to={`/chat/${friend._id}`} className="btn btn-primary btn-sm mt-auto">
+        <MessageCircleIcon className="size-4" /> Message
+      </Link>
+    </div>
+  </div>
+);
 
 export default FriendCard;
-
-
-/**
- * Returns a flag icon representing a language, or null if the language is not supported
- * @param {string} language The language to get a flag for
- * @returns {ReactElement | null} A flag icon, or null if language is not supported
- */
-export function getLanguageFlag(language) {
-    if(!language) return null;
-
-    const langLower = language.toLowerCase();
-    const countryCode = LANGUAGE_TO_FLAG[langLower];
-
-    if (countryCode) {
-        return (
-            <img
-                src={`https://flagcdn.com/24x18/${countryCode}.png`}
-                alt={`${langLower} flag`}
-                className="h-3 mr-1 inline-block"
-            />
-        );
-    }
-    return null;
-    
-}

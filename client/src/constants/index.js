@@ -195,3 +195,10 @@ export const LANGUAGE_TO_FLAG = {
   turkish: "tr",
   dutch: "nl",
 };
+// DaisyUI themes with dark backgrounds; used to pick Stream's light/dark base theme.
+export const DARK_THEMES = new Set([
+  "dark", "synthwave", "halloween", "forest", "aqua", "black", "luxury",
+  "dracula", "business", "night", "coffee", "dim", "sunset",
+]);
+
+export const BIO_MAX = 300;
