@@ -51,17 +51,6 @@ export async function getMyFriends(req, res) {
  * Sends a friend request from the authenticated user to another user.
  * Ensures that the user cannot send a request to themselves, cannot send a request
  * to a user they are already friends with, and cannot send a duplicate request.
- * 
- * @param {Object} req - Express request object containing the authenticated user and recipient ID.
- * @param {Object} res - Express response object used to send back the appropriate response.
- * @returns {Promise<void>} - Sends a JSON response indicating the result of the friend request operation.
- */
-
-
-/**
- * Sends a friend request from the authenticated user to another user.
- * Ensures that the user cannot send a request to themselves, cannot send a request
- * to a user they are already friends with, and cannot send a duplicate request.
  * @param {Object} req - Express request object containing the authenticated user and recipient ID.
  * @param {Object} res - Express response object used to send back the appropriate response.
  * @returns {Promise<void>} - Sends a JSON response indicating the result of the friend request operation.

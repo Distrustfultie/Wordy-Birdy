@@ -38,37 +38,27 @@ const ChatPage = () => {
 
   const { authUser } = useAuthUser();
 
+  // Keyed by user id so a cached token is never reused for a different account.
   const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
+    queryKey: ["streamToken", authUser?._id],
     queryFn: getStreamToken,
     enabled: !!authUser
   });
 
   useEffect(() => {
+    if (!tokenData?.token || !authUser) return;
+
+    // A fresh client per effect run (not the StreamChat singleton) so the
+    // cleanup below can disconnect it without racing a new connection.
+    const client = new StreamChat(STREAM_API_KEY);
+    let cancelled = false;
+
     /**
-     * Initializes the Stream chat client and connects the user to the chat.
-     * It first checks if the user is authenticated and a Stream token is
-     * available. If not, it returns without doing anything.
-     *
-     * It then creates a Stream chat client instance and connects the user
-     * to the chat. It also creates a channel using the authenticated user's
-     * ID and the target user's ID, and watches the channel to get the
-     * channel state.
-     *
-     * If there is an error during initialization, it logs the error
-     * to the console and shows a toast notification to the user.
-     *
-     * Finally, it sets the chat client and channel to the state, and sets
-     * the loading state to false.
+     * Connects the user to Stream, then creates and watches the 1:1 channel
+     * between the authenticated user and the target user.
      */
     const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
-
       try {
-        console.log("Initializing stream chat ...");
-
-        const client = StreamChat.getInstance(STREAM_API_KEY);
-
         await client.connectUser(
           {
             id: authUser._id,
@@ -85,18 +75,27 @@ const ChatPage = () => {
         });
 
         await currChannel.watch();
+        if (cancelled) return;
 
         setChatClient(client);
         setChannel(currChannel);
       } catch (error) {
+        if (cancelled) return;
         console.error("Error initializing chat:", error);
         toast.error("Could not connect to chat. Please try again.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    initChat();
+    const connecting = initChat();
+
+    return () => {
+      cancelled = true;
+      setChatClient(null);
+      setChannel(null);
+      connecting.finally(() => client.disconnectUser());
+    };
   }, [tokenData, authUser, targetUserId]);
 
 /**

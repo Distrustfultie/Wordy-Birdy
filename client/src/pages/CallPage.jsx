@@ -37,58 +37,64 @@ const CallPage = () => {
 
   const { authUser, isLoading } = useAuthUser();
 
+  // Keyed by user id so a cached token is never reused for a different account.
   const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
+    queryKey: ["streamToken", authUser?._id],
     queryFn: getStreamToken,
     enabled: !!authUser
   });
 
   useEffect(() => {
-  /**
-   * Initializes the Stream video client and joins a call.
-   * @function
-   * @async
-   * @throws {Error} - If there is an error joining the call.
-   * @returns {Promise<void>} - A promise that resolves when the call is joined.
-   */
+    if (!tokenData?.token || !authUser) return;
+
+    const videoClient = new StreamVideoClient({
+      apiKey: STREAM_API_KEY,
+      user: {
+        id: authUser._id,
+        name: authUser.fullName,
+        image: authUser.profilePic,
+      },
+      token: tokenData.token,
+    });
+    const callInstance = videoClient.call("default", callId);
+    let cancelled = false;
+
+    /**
+     * Joins (creating if needed) the call for this page's call id.
+     */
     const initCall = async () => {
-      if (!tokenData?.token || !authUser) return;
-
       try {
-        console.log("Initializing stream video client ...");
-
-        const user = {
-          id: authUser._id,
-          name: authUser.fullName,
-          image: authUser.profilePic,
-        }
-
-        const videoClient = new StreamVideoClient({
-          apiKey: STREAM_API_KEY,
-          user,
-          token: tokenData.token,
-        })
-
-        const callInstance = videoClient.call("default", callId);
-
-        await callInstance.join({ create: true })
-
-        console.log("Joined call Successfully")
+        await callInstance.join({ create: true });
+        if (cancelled) return;
 
         setClient(videoClient);
         setCall(callInstance);
-
       } catch (error) {
+        if (cancelled) return;
         console.error("Error joining call", error);
         toast.error("Could not join call. Please try again.");
-
       } finally {
-        setIsConnecting(false);
+        if (!cancelled) setIsConnecting(false);
       }
-
     };
 
-    initCall();
+    const joining = initCall();
+
+    // Leave the call and close the connection when navigating away,
+    // so the camera/mic are released and the user drops out of the call.
+    return () => {
+      cancelled = true;
+      setClient(null);
+      setCall(null);
+      joining
+        .then(async () => {
+          if (callInstance.state.callingState !== CallingState.LEFT) {
+            await callInstance.leave();
+          }
+        })
+        .catch((error) => console.error("Error leaving call", error))
+        .finally(() => videoClient.disconnectUser());
+    };
   }, [tokenData, authUser, callId]);
 
   if (isLoading || isConnecting) return <PageLoader />;
@@ -103,7 +109,7 @@ const CallPage = () => {
             </StreamCall>
           </StreamVideo>
         ) : (
-          <div className="felx items-center justify-center h-full">
+          <div className="flex items-center justify-center h-full">
             <p>Could not initialize call. Please refresh or try again later.</p>
           </div>
         )}
@@ -127,7 +133,12 @@ const CallContent = () => {
 
   const navigate = useNavigate();
 
-  if (callingState === CallingState.LEFT) return navigate("/");
+  // Navigation is a side effect, so it belongs in an effect rather than in render.
+  useEffect(() => {
+    if (callingState === CallingState.LEFT) navigate("/");
+  }, [callingState, navigate]);
+
+  if (callingState === CallingState.LEFT) return null;
 
   return (
     < StreamTheme >

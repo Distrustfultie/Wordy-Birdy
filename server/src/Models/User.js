@@ -5,7 +5,6 @@ const UserSchema = new mongoose.Schema({
     fullName: {
         type: String,
         required: true,
-        unique: true,
     },
     email: {
         type: String,
@@ -48,7 +47,16 @@ const UserSchema = new mongoose.Schema({
         ref: "User",
         }
     ]   
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    // Never send the password hash to clients, whichever controller serializes the user.
+    toJSON: {
+        transform: (_doc, ret) => {
+            delete ret.password;
+            return ret;
+        },
+    },
+});
 
 UserSchema.pre("save", async function(next) {
     if (!this.isModified("password")) return next();

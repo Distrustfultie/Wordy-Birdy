@@ -15,7 +15,12 @@ const useLogout = () => {
 
     const { mutate: logoutMutation, isPending, error } = useMutation({
         mutationFn: logout,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+        onSuccess: () => {
+            // Mark the user as logged out, then drop everything cached for them
+            // (friends, requests, Stream token) so the next account starts clean.
+            queryClient.setQueryData(["authUser"], null);
+            queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "authUser" });
+        },
     });
 
     return { logoutMutation, isPending, error };

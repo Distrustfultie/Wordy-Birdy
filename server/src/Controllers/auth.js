@@ -132,6 +132,7 @@ export async function onboard(req, res) {
       nativeLanguage,
       learningLanguage,
       location,
+      profilePic,
     } = req.body;
 
     if (
@@ -146,14 +147,32 @@ export async function onboard(req, res) {
       });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        ...req.body,
-        isOnboarded: true,
-      },
-      { new: true }
-    );
+    // Only profile fields are writable here; never spread req.body into the update,
+    // or clients could set friends, email, or an unhashed password.
+    const updates = {
+      fullName,
+      bio,
+      nativeLanguage,
+      learningLanguage,
+      location,
+      isOnboarded: true,
+    };
+    if (profilePic) updates.profilePic = profilePic;
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    try {
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || "",
+      });
+    } catch (error) {
+      console.log("Error updating Stream user after onboarding:", error);
+    }
 
     res.status(200).json({
       success: true,

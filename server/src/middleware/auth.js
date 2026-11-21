@@ -19,9 +19,11 @@ export const protectRoute = async (req, res, next) => {
             return res.status(401).json({ message: "Unauthorized  - No token provided" });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        if (!decoded) {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            // Expired, malformed, or wrongly-signed tokens are an auth failure, not a server error.
             return res.status(401).json({ message: "Unauthorized - Invalid token" });
         }
 
