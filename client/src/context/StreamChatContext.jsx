@@ -14,11 +14,11 @@ const StreamChatContext = createContext({ client: null, unreadCount: 0, error: n
  */
 export function StreamChatProvider({ children }) {
   const { authUser } = useAuthUser();
-  const { token } = useStreamToken();
+  const { token, error: tokenError } = useStreamToken();
 
   const [client, setClient] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [error, setError] = useState(null);
+  const [connectError, setConnectError] = useState(null);
 
   const userId = authUser?.isOnboarded ? authUser._id : null;
   const name = authUser?.fullName;
@@ -42,13 +42,13 @@ export function StreamChatProvider({ children }) {
       .then((res) => {
         if (cancelled) return;
         setUnreadCount(res?.me?.total_unread_count ?? 0);
-        setError(null);
+        setConnectError(null);
         setClient(chat);
       })
       .catch((err) => {
         if (cancelled) return;
         console.error("Error connecting to Stream chat:", err);
-        setError(err);
+        setConnectError(err);
       });
 
     return () => {
@@ -59,6 +59,9 @@ export function StreamChatProvider({ children }) {
       connecting.finally(() => chat.disconnectUser());
     };
   }, [userId, name, image, token]);
+
+  // Failing to get a token is as fatal as failing to connect; without it, pages would load forever.
+  const error = client ? null : tokenError || connectError;
 
   return (
     <StreamChatContext.Provider value={{ client, unreadCount, error }}>

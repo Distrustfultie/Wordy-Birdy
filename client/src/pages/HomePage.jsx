@@ -53,13 +53,13 @@ const HomePage = () => {
         <h1 className="relative text-2xl font-bold tracking-tight sm:text-3xl">
           {greeting()}, {firstName} 👋
         </h1>
-        <p className="relative mt-2 flex flex-wrap items-center gap-1.5 text-base-content/70">
-          You&apos;re learning
+        <p className="relative mt-2 text-base-content/70">
+          You&apos;re learning{" "}
           <span className="inline-flex items-center gap-1.5 font-semibold text-base-content">
             <LanguageFlag language={authUser?.learningLanguage} />
-            {capitalize(authUser?.learningLanguage)}
-          </span>
-          . Who will you practice with today?
+            {capitalize(authUser?.learningLanguage)}.
+          </span>{" "}
+          Who will you practice with today?
         </p>
 
         <div className="relative mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">

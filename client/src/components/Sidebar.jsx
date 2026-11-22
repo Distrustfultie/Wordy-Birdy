@@ -6,12 +6,13 @@ import Logo from "./Logo";
 import Avatar from "./Avatar";
 import { LanguageFlag } from "./LanguageBadge";
 import { useStreamChat } from "../context/StreamChatContext";
+import { capitalize } from "../lib/utilis";
 
 const badgeText = (n) => (n > 99 ? "99+" : n);
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
-  const { client } = useStreamChat();
+  const { client, error } = useStreamChat();
   const items = useNavItems();
 
   return (
@@ -59,7 +60,7 @@ const Sidebar = () => {
             Have one conversation in{" "}
             <span className="inline-flex items-center gap-1 font-medium text-base-content">
               <LanguageFlag language={authUser.learningLanguage} />
-              {authUser.learningLanguage}
+              {capitalize(authUser.learningLanguage)}
             </span>
             . Small daily chats add up fast!
           </p>
@@ -73,7 +74,7 @@ const Sidebar = () => {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{authUser?.fullName}</p>
               <p className={`text-xs ${client ? "text-success" : "text-base-content/50"}`}>
-                {client ? "Online" : "Connecting..."}
+                {client ? "Online" : error ? "Chat unavailable" : "Connecting..."}
               </p>
             </div>
           </Link>
